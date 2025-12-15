@@ -243,42 +243,86 @@ export default function TranscriptionPage() {
 
                 {/* Transcription Segments */}
                 <div className="space-y-4">
-                    <h3 className="text-white font-semibold text-lg">Nội Dung Chi Tiết</h3>
-
-                    {recording.transcription.segments.map((segment, index) => (
-                        <div
-                            key={index}
-                            className={`glass p-6 rounded-2xl border-l-4 ${segment.gender === 'male'
-                                ? 'border-blue-500 bg-blue-500/5'
-                                : 'border-pink-500 bg-pink-500/5'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3 mb-3">
-                                <div
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center ${segment.gender === 'male' ? 'bg-blue-500/20' : 'bg-pink-500/20'
-                                        }`}
-                                >
-                                    <span className="text-xl">
-                                        {segment.gender === 'male' ? '👨' : '👩'}
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-white font-semibold text-lg">Nội Dung Chi Tiết</h3>
+                        {recording.transcription && (
+                            <div className="flex gap-2 text-sm">
+                                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg">
+                                    👨 Nam: {recording.transcription.segments.filter(s => s.gender === 'male').length}
+                                </span>
+                                <span className="px-3 py-1 bg-pink-500/20 text-pink-400 rounded-lg">
+                                    👩 Nữ: {recording.transcription.segments.filter(s => s.gender === 'female').length}
+                                </span>
+                                {recording.transcription.segments.some(s => s.gender === 'unknown') && (
+                                    <span className="px-3 py-1 bg-gray-500/20 text-gray-400 rounded-lg">
+                                        👤 Unknown: {recording.transcription.segments.filter(s => s.gender === 'unknown').length}
                                     </span>
-                                </div>
-
-                                <div>
-                                    <div className={`font-semibold ${segment.gender === 'male' ? 'text-blue-400' : 'text-pink-400'
-                                        }`}>
-                                        {segment.speaker}
-                                    </div>
-                                    <div className="text-sm text-gray-400">Đoạn {index + 1}</div>
-                                </div>
-
-                                <div className="ml-auto px-3 py-1 bg-wise-purple-800 text-wise-purple-300 text-sm rounded-lg">
-                                    {segment.timestamp}
-                                </div>
+                                )}
                             </div>
+                        )}
+                    </div>
 
-                            <p className="text-white leading-relaxed">{segment.text}</p>
-                        </div>
-                    ))}
+                    {recording.transcription.segments.map((segment, index) => {
+                        const getBorderColor = () => {
+                            if (segment.gender === 'male') return 'border-blue-500 bg-blue-500/5'
+                            if (segment.gender === 'female') return 'border-pink-500 bg-pink-500/5'
+                            return 'border-gray-500 bg-gray-500/5'
+                        }
+
+                        const getIconBg = () => {
+                            if (segment.gender === 'male') return 'bg-blue-500/20'
+                            if (segment.gender === 'female') return 'bg-pink-500/20'
+                            return 'bg-gray-500/20'
+                        }
+
+                        const getIcon = () => {
+                            if (segment.gender === 'male') return '👨'
+                            if (segment.gender === 'female') return '👩'
+                            return '👤'
+                        }
+
+                        const getTextColor = () => {
+                            if (segment.gender === 'male') return 'text-blue-400'
+                            if (segment.gender === 'female') return 'text-pink-400'
+                            return 'text-gray-400'
+                        }
+
+                        return (
+                            <div
+                                key={index}
+                                className={`glass p-6 rounded-2xl border-l-4 ${getBorderColor()}`}
+                            >
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getIconBg()}`}>
+                                        <span className="text-xl">{getIcon()}</span>
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <div className={`font-semibold ${getTextColor()}`}>
+                                            {segment.speaker}
+                                        </div>
+                                        <div className="text-sm text-gray-400">Đoạn {index + 1}</div>
+                                    </div>
+
+                                    <div className="flex gap-2 items-center">
+                                        {segment.genderReason && (
+                                            <div
+                                                className="px-2 py-1 bg-wise-purple-900/50 text-xs text-wise-purple-300 rounded-lg cursor-help"
+                                                title={segment.genderReason}
+                                            >
+                                                💡 {segment.genderReason.substring(0, 30)}...
+                                            </div>
+                                        )}
+                                        <div className="px-3 py-1 bg-wise-purple-800 text-wise-purple-300 text-sm rounded-lg">
+                                            {segment.timestamp}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p className="text-white leading-relaxed">{segment.text}</p>
+                            </div>
+                        )
+                    })}
                 </div>
 
                 {/* Full Text */}
