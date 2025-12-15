@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'export',
+    // Note: Static export disabled to support dynamic API routes for transcription
+    // output: 'export',
+    reactStrictMode: true,
+    swcMinify: true,
     images: {
         unoptimized: true,
     },

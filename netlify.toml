@@ -4,8 +4,11 @@
   status = 200
 
 [build]
-  publish = "out"
-  command = "npm run build"
+  command = "npm run build && npm run start"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
+
+[[plugins]]
+package = "@netlify/plugin-nextjs"

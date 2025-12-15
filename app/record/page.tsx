@@ -46,15 +46,19 @@ export default function RecordPage() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
+                    channelCount: 1, // Mono - giảm tiếng ồn
+                    sampleRate: 44100, // High quality
+                    sampleSize: 16,
                     echoCancellation: true,
                     noiseSuppression: true,
-                    sampleRate: 44100,
+                    autoGainControl: true, // Tự động cân bằng âm lượng
                 }
             })
             streamRef.current = stream
 
             const mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
+                mimeType: 'audio/webm;codecs=opus',
+                audioBitsPerSecond: 128000, // 128kbps
             })
             mediaRecorderRef.current = mediaRecorder
             chunksRef.current = []
@@ -118,8 +122,9 @@ export default function RecordPage() {
 
     const saveRecording = () => {
         if (audioBlob && audioURL) {
+            const recordingId = uuidv4()
             const recording = {
-                id: uuidv4(),
+                id: recordingId,
                 name: `Ghi âm ${new Date().toLocaleString('vi-VN')}`,
                 uri: audioURL,
                 blob: audioBlob,
@@ -129,8 +134,7 @@ export default function RecordPage() {
             }
 
             addRecording(recording)
-            alert('Đã lưu ghi âm!')
-            router.push('/history')
+            router.push(`/transcribing/${recordingId}`)
         }
     }
 
@@ -275,10 +279,7 @@ export default function RecordPage() {
                         </div>
 
                         <button
-                            onClick={() => {
-                                // TODO: Navigate to transcription
-                                alert('Chức năng chuyển văn bản đang được phát triển')
-                            }}
+                            onClick={saveRecording}
                             className="w-full px-4 py-3 bg-wise-amber-500 hover:bg-wise-amber-600 text-white rounded-xl transition-colors flex items-center justify-center gap-2"
                         >
                             <FileText className="w-5 h-5" />
