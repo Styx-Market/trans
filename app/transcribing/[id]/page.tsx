@@ -33,23 +33,39 @@ export default function TranscribingPage() {
         processTranscription()
     }, [recording, id, router])
 
+
     const processTranscription = async () => {
         if (!recording || !recording.blob) return
+
+        let progressInterval: NodeJS.Timeout | null = null
 
         try {
             setStatus('Đang chuyển đổi âm thanh...')
             setProgress(10)
 
-            //  Real OpenAI API call
+            // Smooth progress animation to 85% while API is working
+            progressInterval = setInterval(() => {
+                setProgress(prev => {
+                    if (prev < 85) return prev + 1
+                    return prev
+                })
+            }, 300) // Update every 300ms
+
+            // Real OpenAI API call
             const result = await transcribeAudio(recording.blob)
 
-            setProgress(70)
-            setStatus('Phát hiện người nói...')
+            // Clear interval when API returns
+            if (progressInterval) {
+                clearInterval(progressInterval)
+                progressInterval = null
+            }
 
-            // Wait a bit for UX
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            setProgress(88)
+            setStatus('Phân tích người nói...')
 
-            setProgress(90)
+            await new Promise(resolve => setTimeout(resolve, 800))
+
+            setProgress(95)
             setStatus('Hoàn tất...')
 
             // Update recording with transcription
@@ -83,6 +99,11 @@ export default function TranscribingPage() {
                     router.push('/history')
                 }
             }, 1000)
+        } finally {
+            // Cleanup interval in all cases
+            if (progressInterval) {
+                clearInterval(progressInterval)
+            }
         }
     }
 
