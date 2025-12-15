@@ -1,13 +1,16 @@
 import OpenAI from 'openai'
 
+export interface TranscriptionSegment {
+    timestamp: string
+    speaker: string
+    text: string
+    gender: 'male' | 'female' | 'unknown'
+    genderReason?: string // Lý do xác định giới tính
+}
+
 export async function transcribeAudio(audioBlob: Blob): Promise<{
     text: string
-    segments: Array<{
-        timestamp: string
-        speaker: string
-        text: string
-        gender: 'male' | 'female'
-    }>
+    segments: TranscriptionSegment[]
 }> {
     try {
         const apiKey = process.env.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY
@@ -43,10 +46,13 @@ Ví dụ chuẩn: "Xin chào, tôi là Nguyễn Văn A. Hôm nay trời đẹp q
         })
 
         // Get full text
-        const rawText = transcription.text
+        let rawText = transcription.text
 
-        // Speaker diarization với AI
-        const segments = await detectSpeakers(rawText, openai)
+        // Auto spell correction
+        rawText = await correctVietnameseText(rawText, openai)
+
+        // Speaker diarization với AI - enhanced
+        const segments = await detectSpeakersEnhanced(rawText, openai)
 
         return {
             text: rawText,
@@ -58,95 +64,140 @@ Ví dụ chuẩn: "Xin chào, tôi là Nguyễn Văn A. Hôm nay trời đẹp q
     }
 }
 
-async function detectSpeakers(
+// Sửa lỗi chính tả tự động
+async function correctVietnameseText(text: string, openai: OpenAI): Promise<string> {
+    try {
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: `Bạn là chuyên gia chỉnh sửa văn bản tiếng Việt. Nhiệm vụ:
+
+1. SỬA LỖI CHÍNH TẢ:
+   - Thêm đúng dấu thanh: sắc, huyền, hỏi, ngã, nặng
+   - Sửa từ sai: "toi" → "tôi", "ban" → "bạn", "khong" → "không"
+
+2. THÊM DẤU CÂU:
+   - Dấu chấm (.) khi kết thúc câu
+   - Dấu phẩy (,) khi ngắt ý
+   - Dấu hỏi (?) cho câu hỏi
+   - Dấu than (!) cho cảm thán
+
+3. VIẾT HOA:
+   - Chữ đầu câu
+   - Tên riêng, địa danh
+
+4. GIỮ NGUYÊN ý nghĩa - KHÔNG thêm bớt
+
+Chỉ trả về văn bản đã sửa, không giải thích.`
+                },
+                {
+                    role: 'user',
+                    content: `Chỉnh sửa văn bản sau:\n\n${text}`
+                }
+            ],
+            temperature: 0.1,
+        })
+
+        return response.choices[0].message.content?.trim() || text
+    } catch (error) {
+        console.error('Spell correction error:', error)
+        return text // Return original if fails
+    }
+}
+
+// Enhanced speaker detection với gender reason
+async function detectSpeakersEnhanced(
     text: string,
     openai: OpenAI
-): Promise<Array<{
-    timestamp: string
-    speaker: string
-    text: string
-    gender: 'male' | 'female'
-}>> {
+): Promise<TranscriptionSegment[]> {
     try {
-        // Enhanced prompt for accurate speaker detection
-        const prompt = `Phân tích hội thoại tiếng Việt và xác định người nói:
+        const prompt = `Phân tích hội thoại tiếng Việt - Xác định người nói và giới tính:
 
-## YÊU CẦU:
-1. **Phát hiện số người**: Dựa vào ngữ cảnh (câu hỏi/trả lời, chuyển đề, phong cách nói)
-2. **Giới tính**: Phân tích qua xưng hô (tôi/anh/chị/em), từ ngữ, ngữ cảnh
-3. **Phân đoạn chính xác**: Mỗi lượt nói một dòng
-4. **Timestamp**: Ước tính thời gian dựa trên độ dài câu (5 từ ~ 3 giây)
+## NHIỆM VỤ:
+1. **Số người nói**:
+   - Có hỏi-đáp qua lại → ít nhất 2 người
+   - Có "anh" nói với "em" → 2 người  
+   - Độc thoại, kể chuyện → 1 người
+   - Các từ xen kẽ "ừ", "vâng" → nhiều người
 
-## FORMAT:
-[MM:SS] [Nam|Nữ] [Số]: Nội dung
-  
+2. **Giới tính** (quan trọng!):
+   - **NAM**: tự xưng "anh", "tao", "ông" | được gọi "anh", "chú"
+   - **NỮ**: tự xưng "chị", "em", "mình" | được gọi "chị", "cô"
+   - **UNKNOWN**: không xác định được
+
+3. **Format** (BẮT BUỘC):
+[MM:SS] [Nam|Nữ|Unknown] [Số]: Nội dung | Lý do: [lý do xác định giới tính]
+
 Ví dụ:
-[00:00] Nam 1: Xin chào mọi người
-[00:03] Nữ 1: Chào anh, hôm nay thế nào?
-[00:07] Nam 1: Khỏe, cảm ơn em đã hỏi
+[00:00] Nam 1: Xin chào mọi người | Lý do: tự xưng "tôi" (nam)
+[00:03] Nữ 1: Chào anh, em khỏe | Lý do: tự xưng "em", gọi đối phương "anh"
+[00:07] Unknown 1: Hôm nay thế nào? | Lý do: không đủ thông tin
 
-## PHÂN TÍCH DẤU HIỆU:
-- Câu hỏi → Có thể người khác
-- Thay đổi xưng hô → Có thể đổi người
-- Chuyển đề đột ngột → Có thể đổi người
+## DẤU HIỆU:
+- Câu hỏi/trả lời → đổi người
+- Xưng hô thay đổi → đổi người
+- "Ừ", "vâng", "được" → phản hồi của người khác
 
 Văn bản:
 ${text}
 
-QUAN TRỌNG: Chỉ trả về format chuẩn, mỗi câu một dòng!`
+QUAN TRỌNG: Mỗi câu một dòng theo đúng format!`
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [
                 {
                     role: 'system',
-                    content: `Bạn là chuyên gia phân tích hội thoại tiếng Việt với khả năng:
-- Nhận diện người nói qua ngữ cảnh
-- Phân biệt giới tính qua cách xưng hô và từ ngữ
-- Phân đoạn chính xác nội dung theo người nói
-Trả lời ngắn gọn, chính xác theo format yêu cầu.`,
+                    content: `Bạn là chuyên gia phân tích hội thoại tiếng Việt:
+- Nhận diện người nói qua ngữ cảnh, xưng hô
+- Phân biệt giới tính CHÍNH XÁC qua từ ngữ
+- THIÊN về xác định rõ ràng thay vì "Unknown"
+- Giải thích lý do xác định giới tính
+Trả lời ngắn gọn theo format.`
                 },
                 {
                     role: 'user',
                     content: prompt,
                 },
             ],
-            temperature: 0.2, // Low temp for consistency
+            temperature: 0.2,
         })
 
         const result = response.choices[0].message.content || text
-
-        // Parse result into segments
         const lines = result.split('\n').filter((line) => line.trim())
-        const segments: Array<{
-            timestamp: string
-            speaker: string
-            text: string
-            gender: 'male' | 'female'
-        }> = []
+        const segments: TranscriptionSegment[] = []
 
         lines.forEach((line) => {
-            // Match format: [00:00] Nam 1: Text
-            const match = line.match(/\[(\d{2}:\d{2})\]\s*(Nam|Nữ)\s*(\d+):\s*(.+)/)
+            // Match: [00:00] Nam 1: Text | Lý do: reason
+            const match = line.match(/\[(\d{2}:\d{2})\]\s*(Nam|Nữ|Unknown)\s*(\d+):\s*([^|]+)(?:\|\s*Lý do:\s*(.+))?/)
             if (match) {
-                const [, timestamp, genderText, speakerNum, text] = match
+                const [, timestamp, genderText, speakerNum, text, reason] = match
+
+                let gender: 'male' | 'female' | 'unknown' = 'unknown'
+                if (genderText === 'Nam') gender = 'male'
+                else if (genderText === 'Nữ') gender = 'female'
+
                 segments.push({
                     timestamp,
                     speaker: `${genderText} ${speakerNum}`,
                     text: text.trim(),
-                    gender: genderText === 'Nam' ? 'male' : 'female',
+                    gender,
+                    genderReason: reason?.trim() || 'Không có thông tin',
                 })
             }
         })
 
-        // Fallback if parsing fails
+        // Fallback
         if (segments.length === 0) {
             return [
                 {
                     timestamp: '00:00',
-                    speaker: 'Nam 1',
+                    speaker: 'Unknown 1',
                     text: text,
-                    gender: 'male',
+                    gender: 'unknown',
+                    genderReason: 'Không đủ thông tin để xác định',
                 },
             ]
         }
@@ -154,13 +205,13 @@ Trả lời ngắn gọn, chính xác theo format yêu cầu.`,
         return segments
     } catch (error) {
         console.error('Speaker detection error:', error)
-        // Fallback: return text as single segment
         return [
             {
                 timestamp: '00:00',
-                speaker: 'Nam 1',
+                speaker: 'Unknown 1',
                 text: text,
-                gender: 'male',
+                gender: 'unknown',
+                genderReason: 'Lỗi khi phân tích',
             },
         ]
     }

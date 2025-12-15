@@ -3,9 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 export interface TranscriptionSegment {
     timestamp: string
-    speaker: string // "Nam 1", "Nữ 1", etc.
+    speaker: string // "Nam 1", "Nữ 1", "Unknown 1", etc.
     text: string
-    gender?: 'male' | 'female'
+    gender: 'male' | 'female' | 'unknown'
+    genderReason?: string // Lý do xác định giới tính
 }
 
 export interface Transcription {
