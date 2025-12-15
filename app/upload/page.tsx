@@ -67,8 +67,9 @@ export default function UploadPage() {
                 audio.onloadedmetadata = resolve
             })
 
+            const recordingId = uuidv4()
             const recording = {
-                id: uuidv4(),
+                id: recordingId,
                 name: selectedFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
                 uri: url,
                 blob: selectedFile,
@@ -79,11 +80,8 @@ export default function UploadPage() {
 
             addRecording(recording)
 
-            setTimeout(() => {
-                setIsUploading(false)
-                alert('Đã tải lên thành công!')
-                router.push('/history')
-            }, 1000)
+            // Navigate to transcription directly
+            router.push(`/transcribing/${recordingId}`)
 
         } catch (error) {
             console.error('Upload error:', error)
@@ -182,7 +180,7 @@ export default function UploadPage() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={() => setSelectedFile(null)}
-                                    className="flex-1 px-6 py-3 bg-wise-purple-700 hover:bg-wise-purple-600 text-white rounded-xl transition-colors"
+                                    className="flex-1 px-6 py-3 bg-wise-purple-700 hover:bg-wise-purple-600 text-white rounded-xl transition-colors font-medium"
                                 >
                                     Hủy
                                 </button>
@@ -191,7 +189,7 @@ export default function UploadPage() {
                                     disabled={isUploading}
                                     className="flex-1 px-6 py-3 bg-wise-amber-500 hover:bg-wise-amber-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {isUploading ? 'Đang tải lên...' : 'Tải Lên'}
+                                    {isUploading ? 'Đang xử lý...' : '🤖 Chuyển Văn Bản'}
                                 </button>
                             </div>
                         </div>
