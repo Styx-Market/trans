@@ -249,6 +249,27 @@ export default function HistoryPage() {
                                                 {recording.transcription.text}
                                             </p>
                                         )}
+
+                                        {/* Transcription Button */}
+                                        {!isSelectionMode && (
+                                            <div className="mt-3">
+                                                {recording.transcription ? (
+                                                    <Link
+                                                        href={`/transcription/${recording.id}`}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-wise-amber-500 hover:bg-wise-amber-600 text-white font-medium rounded-lg transition-colors"
+                                                    >
+                                                        📝 Xem Kết Quả
+                                                    </Link>
+                                                ) : (
+                                                    <Link
+                                                        href={`/transcribing/${recording.id}`}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-wise-amber-500 to-wise-purple-500 hover:from-wise-amber-600 hover:to-wise-purple-600 text-white font-semibold rounded-lg transition-all shadow-lg"
+                                                    >
+                                                        🤖 Chuyển Văn Bản
+                                                    </Link>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Delete Button */}

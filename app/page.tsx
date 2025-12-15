@@ -1,11 +1,49 @@
 'use client'
 
-import { Mic, Upload, Clock, Sparkles } from 'lucide-react'
+import { Mic, Upload, Clock, Sparkles, Settings, LogOut, User } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/lib/store/authStore'
 
 export default function HomePage() {
+    const router = useRouter()
+    const { isAuthenticated, currentUser, logout } = useAuthStore()
+
+    const handleLogout = () => {
+        if (confirm('Bạn có chắc muốn đăng xuất?')) {
+            logout()
+            router.push('/login')
+        }
+    }
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-6">
+            {/* Auth UI - Top Right */}
+            {isAuthenticated && currentUser && (
+                <div className="absolute top-6 right-6 flex items-center gap-3">
+                    <div className="glass px-4 py-2 rounded-xl flex items-center gap-2">
+                        <User className="w-4 h-4 text-wise-amber-500" />
+                        <span className="text-white font-medium">{currentUser}</span>
+                    </div>
+
+                    <Link
+                        href="/admin"
+                        className="p-2 glass rounded-lg hover:bg-wise-purple-700 transition-colors"
+                        title="Settings"
+                    >
+                        <Settings className="w-5 h-5 text-wise-purple-300" />
+                    </Link>
+
+                    <button
+                        onClick={handleLogout}
+                        className="p-2 glass rounded-lg hover:bg-red-500/20 transition-colors"
+                        title="Logout"
+                    >
+                        <LogOut className="w-5 h-5 text-red-400" />
+                    </button>
+                </div>
+            )}
+
             {/* Header */}
             <div className="text-center mb-12 animate-fade-in">
                 <div className="inline-flex items-center gap-2 bg-wise-amber-500/20 px-4 py-2 rounded-full mb-6 border border-wise-amber-500/30">
